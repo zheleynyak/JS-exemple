@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Name/Value Pair Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        @media (min-width: 600px) {
+            .input-container {
+                flex-direction: row;
+            }
+        }
+
+        #pairInput {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        @media (min-width: 600px) {
+            #pairInput {
+                margin-bottom: 0;
+                margin-right: 10px;
+            }
+        }
+
+        #addButton {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        #addButton:hover {
+            background-color: #45a049;
+        }
+
+        .button-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .action-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        #sortByName {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        #sortByName:hover {
+            background-color: #0b7dda;
+        }
+
+        #sortByValue {
+            background-color: #ff9800;
+            color: white;
+        }
+
+        #sortByValue:hover {
+            background-color: #e68a00;
+        }
+
+        #deleteSelected {
+            background-color: #f44336;
+            color: white;
+        }
+
+        #deleteSelected:hover {
+            background-color: #da190b;
+        }
+
+        #pairList {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        #pairList th {
+            background-color: #f2f2f2;
+            text-align: left;
+            padding: 12px;
+        }
+
+        #pairList td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        #pairList tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .error-message {
+            color: #f44336;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .empty-message {
+            text-align: center;
+            color: #777;
+            padding: 20px;
+            display: none;
+        }
+
+        .checkbox-cell {
+            width: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Name/Value Pair Manager</h1>
+
+    <div class="input-container">
+        <input type="text" id="pairInput" placeholder="Enter name/value pair (format: name = value)">
+        <button id="addButton">Add Pair</button>
+    </div>
+    <div id="errorMessage" class="error-message"></div>
+
+    <div class="button-container">
+        <button id="sortByName" class="action-button">Sort by Name</button>
+        <button id="sortByValue" class="action-button">Sort by Value</button>
+        <button id="deleteSelected" class="action-button">Delete Selected</button>
+    </div>
+
+    <table id="pairList">
+        <thead>
+            <tr>
+                <th class="checkbox-cell"></th>
+                <th>Name</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody id="pairListBody">
+            <!-- Pairs will be added here dynamically -->
+        </tbody>
+    </table>
+    <div id="emptyMessage" class="empty-message">No name/value pairs added yet.</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM elements
+            const pairInput = document.getElementById('pairInput');
+            const addButton = document.getElementById('addButton');
+            const sortByNameButton = document.getElementById('sortByName');
+            const sortByValueButton = document.getElementById('sortByValue');
+            const deleteSelectedButton = document.getElementById('deleteSelected');
+            const pairListBody = document.getElementById('pairListBody');
+            const errorMessage = document.getElementById('errorMessage');
+            const emptyMessage = document.getElementById('emptyMessage');
+
+            // Array to store name/value pairs
+            let pairs = [];
+
+            // Add pair button click handler
+            addButton.addEventListener('click', addPair);
+
+            // Also allow adding pair by pressing Enter key
+            pairInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addPair();
+                }
+            });
+
+            // Sort buttons click handlers
+            sortByNameButton.addEventListener('click', sortByName);
+            sortByValueButton.addEventListener('click', sortByValue);
+
+            // Delete selected button click handler
+            deleteSelectedButton.addEventListener('click', deleteSelected);
+
+            /**
+             * Validates the input string for correct name/value pair format
+             * @param {string} input - The input string to validate
+             * @returns {object|null} Returns an object with name and value if valid, null otherwise
+             */
+            function validatePairInput(input) {
+                if (!input) return null;
+
+                // Trim the input and split on equals sign (with optional spaces around it)
+                const trimmed = input.trim();
+                const parts = trimmed.split(/\s*=\s*/);
+
+                // Should have exactly 2 parts (name and value)
+                if (parts.length !== 2) return null;
+
+                const name = parts[0].trim();
+                const value = parts[1].trim();
+
+                // Check if name and value contain only alphanumeric characters
+                const alphanumericRegex = /^[a-zA-Z0-9]+$/;
+                if (!alphanumericRegex.test(name) || !alphanumericRegex.test(value)) {
+                    return null;
+                }
+
+                return { name, value };
+            }
+
+            /**
+             * Adds a new name/value pair to the list if valid
+             */
+            function addPair() {
+                errorMessage.style.display = 'none';
+                const input = pairInput.value;
+                const pair = validatePairInput(input);
+
+                if (pair) {
+                    // Add to array
+                    pairs.push({
+                        name: pair.name,
+                        value: pair.value,
+                        id: Date.now() // Unique identifier for each pair
+                    });
+
+                    // Update the display
+                    renderPairs();
+
+                    // Clear the input
+                    pairInput.value = '';
+                } else {
+                    // Show error message
+                    errorMessage.textContent = 'Invalid format. Please use: name = value (alphanumeric characters only)';
+                    errorMessage.style.display = 'block';
+                }
+            }
+
+            /**
+             * Renders all pairs in the table
+             */
+            function renderPairs() {
+                // Clear current list
+                pairListBody.innerHTML = '';
+
+                if (pairs.length === 0) {
+                    emptyMessage.style.display = 'block';
+                    return;
+                } else {
+                    emptyMessage.style.display = 'none';
+                }
+
+                // Add each pair to the table
+                pairs.forEach(pair => {
+                    const row = document.createElement('tr');
+
+                    // Checkbox cell
+                    const checkboxCell = document.createElement('td');
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.dataset.id = pair.id;
+                    checkboxCell.appendChild(checkbox);
+                    row.appendChild(checkboxCell);
+
+                    // Name cell
+                    const nameCell = document.createElement('td');
+                    nameCell.textContent = pair.name;
+                    row.appendChild(nameCell);
+
+                    // Value cell
+                    const valueCell = document.createElement('td');
+                    valueCell.textContent = pair.value;
+                    row.appendChild(valueCell);
+
+                    pairListBody.appendChild(row);
+                });
+            }
+
+            /**
+             * Sorts pairs by name in ascending order
+             */
+            function sortByName() {
+                pairs.sort((a, b) => a.name.localeCompare(b.name));
+                renderPairs();
+            }
+
+            /**
+             * Sorts pairs by value in ascending order
+             */
+            function sortByValue() {
+                pairs.sort((a, b) => a.value.localeCompare(b.value));
+                renderPairs();
+            }
+
+            /**
+             * Deletes selected pairs
+             */
+            function deleteSelected() {
+                // Get all checked checkboxes
+                const checkboxes = document.querySelectorAll('#pairListBody input[type="checkbox"]:checked');
+
+                // Get IDs of pairs to delete
+                const idsToDelete = Array.from(checkboxes).map(checkbox => parseInt(checkbox.dataset.id));
+
+                // Filter out pairs that are not selected
+                pairs = pairs.filter(pair => !idsToDelete.includes(pair.id));
+
+                // Update the display
+                renderPairs();
+            }
+
+            // Initial render
+            renderPairs();
+        });
+    </script>
+</body>
+</html>
